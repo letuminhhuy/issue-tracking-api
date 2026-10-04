@@ -17,7 +17,9 @@ var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
 
 // ---------- Database ----------
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.EnableRetryOnFailure()));
 
 // ---------- Services (DI) ----------
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -80,6 +82,21 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// ---------- Auto-migrate database khi start ----------
+// Giúp container chạy xong là có schema ngay, không cần exec vào container
+// để chạy "dotnet ef database update" bằng tay. Chỉ áp dụng cho SQL Server
+// thật — test dùng SQLite in-memory và tự tạo schema bằng EnsureCreated()
+// (xem CustomWebApplicationFactory), gọi Migrate() ở đó sẽ bị lỗi "table
+// already exists" vì EnsureCreated không ghi lịch sử migration.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (db.Database.IsSqlServer())
+    {
+        db.Database.Migrate();
+    }
+}
+
 // ---------- Middleware pipeline ----------
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -89,7 +106,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Trong container chỉ expose cổng HTTP (xem Dockerfile), không có HTTPS cert,
+// nên bỏ qua redirect để tránh request bị redirect sang cổng HTTPS không tồn tại.
+if (Environment.GetEnvironmentVariable("RUNNING_IN_CONTAINER") != "true")
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

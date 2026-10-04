@@ -52,6 +52,27 @@ A RESTful Issue Tracking API built with ASP.NET Core 8.
    ```
 6. Mở Swagger UI (`/swagger`) để test API. Gọi `POST /api/auth/register` để tạo user đầu tiên (tự động là Admin), copy `token` trả về và bấm **Authorize** trên Swagger, nhập `Bearer {token}`.
 
+## Chạy bằng Docker
+
+API và SQL Server được chạy bằng `docker-compose` (đã tách riêng container, dùng SQL
+Server Authentication thay vì Windows Auth để chạy được trong container).
+
+1. Copy file mẫu rồi điền giá trị thật (file `.env` không commit lên git):
+   ```
+   cp .env.example .env
+   ```
+2. Build & chạy:
+   ```
+   docker compose up -d --build
+   ```
+   Lần đầu chạy sẽ chờ SQL Server container healthy rồi API mới start; migration được áp
+   tự động khi API khởi động (không cần chạy `dotnet ef` tay).
+3. Mở `http://localhost:8080/swagger` để test.
+4. Dọn sạch (xóa luôn volume DB) khi không dùng nữa:
+   ```
+   docker compose down -v
+   ```
+
 ## Cấu trúc thư mục
 
 ```

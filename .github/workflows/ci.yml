@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # Dùng trực tiếp path .csproj (không qua .slnx) vì SDK 8.0.x trên CI
+      # có thể chưa hỗ trợ format .slnx (XML-based solution file, còn mới).
+      - name: Restore
+        run: dotnet restore IssueTrackingAPI/IssueTrackingAPI.Tests/IssueTrackingAPI.Tests.csproj
+
+      - name: Build
+        run: dotnet build IssueTrackingAPI/IssueTrackingAPI.Tests/IssueTrackingAPI.Tests.csproj --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test IssueTrackingAPI/IssueTrackingAPI.Tests/IssueTrackingAPI.Tests.csproj --no-build --configuration Release
