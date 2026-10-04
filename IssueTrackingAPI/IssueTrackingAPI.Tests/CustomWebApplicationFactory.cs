@@ -21,6 +21,20 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // Giữ connection mở suốt đời factory để DB in-memory không bị xóa.
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
+
+        // Test phải tự chứa, không phụ thuộc Jwt:Key thật từ User Secrets của máy
+        // đang chạy — nếu không, test pass trên máy có secret (Development tự load
+        // User Secrets) nhưng fail 500 trên CI/máy khác (Jwt:Key trong
+        // appsettings.json chỉ là placeholder rỗng). Phải set bằng env var (không
+        // phải ConfigureAppConfiguration) vì Program.cs đọc Jwt:Key RA TRƯỚC khi
+        // gọi builder.Build() — lúc đó các hook của WebApplicationFactory
+        // (ConfigureAppConfiguration/ConfigureServices) chưa kịp áp dụng. Env var
+        // thì được "WebApplication.CreateBuilder()" đọc ngay từ dòng đầu Program.cs,
+        // miễn là set trước khi factory tạo host (ở đây, trong constructor).
+        Environment.SetEnvironmentVariable("Jwt__Key", "test-only-signing-key-not-a-real-secret-32chars+");
+        Environment.SetEnvironmentVariable("Jwt__Issuer", "IssueTrackingAPI");
+        Environment.SetEnvironmentVariable("Jwt__Audience", "IssueTrackingAPIClient");
+        Environment.SetEnvironmentVariable("Jwt__ExpiryMinutes", "120");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
